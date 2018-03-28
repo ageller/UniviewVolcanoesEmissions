@@ -15,7 +15,7 @@ void main(void)
 	
 	if (simMarker == 1) {
 		//make a triangle
-		if (abs(texcoord.x) > 0.5*(1. + texcoord.y) ){
+		if (abs(texcoord.x) > 0.5*(1. - texcoord.y) ){
 			discard;
 		}
 	} else {

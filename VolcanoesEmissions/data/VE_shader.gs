@@ -13,10 +13,6 @@ uniform int uv_simulationtimeDays;
 uniform float uv_simulationtimeSeconds;
 uniform float uv_fade;
 
-uniform float Scale;
-uniform vec3 RotationAxis;
-uniform float RotationAngle;
-
 uniform float simBindRealtime;
 uniform float simUseTime;
 uniform float simdtmin;
@@ -51,41 +47,35 @@ vec3 getPos(vec2 lonlat, vec2 s){
 	float r = 1.;
 
 	float x = r * cos(p.x)*cos(p.y);
-	float y = r * sin(p.x)*cos(p.y);
+	float y = -1. * r * sin(p.x)*cos(p.y);
 	float z = r * sin(p.y);
 
 	return vec3(x,y,z);
 }
 
-void makeBoxOnSphere(vec2 lonlat, float s){
-
-	vec3 center = (uv_scene2ObjectMatrix * uv_cameraPos).xyz;
-	mat4 RotMat = getRotationMatrix(RotationAxis, RotationAngle);
-	vec3 position = vec3(0.);
-
+void drawSprite(vec4 position, float radius, float rotation)
+{
+    vec3 objectSpaceUp = vec3(0, 0, 1);
+    vec3 objectSpaceCamera = (uv_modelViewInverseMatrix * vec4(0, 0, 0, 1)).xyz;
+    vec3 cameraDirection = normalize(objectSpaceCamera - position.xyz);
+    vec3 orthogonalUp = normalize(objectSpaceUp - cameraDirection * dot(cameraDirection, objectSpaceUp));
+    vec3 rotatedUp = mat3(getRotationMatrix(cameraDirection, rotation)) * orthogonalUp;
+    vec3 side = cross(rotatedUp, cameraDirection);
     texcoord = vec2(-1., 1.);
-	position = getPos(lonlat, vec2(-s, s));
-	gl_Position = uv_modelViewProjectionMatrix * (Scale * (RotMat * vec4(position,0.0)) + vec4(center, 1.0));    		  
+	gl_Position = uv_modelViewProjectionMatrix * vec4(position.xyz + radius * (-side + rotatedUp), 1);
 	EmitVertex();
-	
     texcoord = vec2(-1., -1.);
-	position = getPos(lonlat, vec2(-s, -s));
-	gl_Position =  uv_modelViewProjectionMatrix * (Scale * (RotMat * vec4(position,0.0)) + vec4(center, 1.0));    		  
+	gl_Position = uv_modelViewProjectionMatrix * vec4(position.xyz + radius * (-side - rotatedUp), 1);
 	EmitVertex();
-	
     texcoord = vec2(1, 1);
-	position = getPos(lonlat, vec2(s, s));
-	gl_Position =  uv_modelViewProjectionMatrix * (Scale * (RotMat * vec4(position,0.0)) + vec4(center, 1.0));    		  
+	gl_Position = uv_modelViewProjectionMatrix * vec4(position.xyz + radius * (side + rotatedUp), 1);
 	EmitVertex();
-	
     texcoord = vec2(1, -1.);
-	position = getPos(lonlat, vec2(s, -s));
-	gl_Position =  uv_modelViewProjectionMatrix * (Scale * (RotMat * vec4(position,0.0)) + vec4(center, 1.0));    		  
+	gl_Position = uv_modelViewProjectionMatrix * vec4(position.xyz + radius * (side - rotatedUp), 1);
 	EmitVertex();
-	
 	EndPrimitive();
-
 }
+
 
 
 void main()
@@ -114,20 +104,23 @@ void main()
 		cosmoTime = univYr;
 	} 
 
-	vec2 lonlat = vec2(gl_in[0].gl_Position.xy) * DEG2RAD;// + vec2(PI/2., -PI/4.);
+	vec2 lonlat = vec2(gl_in[0].gl_Position.xy) * DEG2RAD;
 	float s = gl_in[0].gl_Position.z;
 
 	galpha = 1.;
 	float sMult = 1.;
-
+	vec3 position = vec3(0);
+	vec3 center = (uv_scene2ObjectMatrix * uv_cameraPos).xyz;
+	mat4 RotMat = getRotationMatrix(vec3(0., 0., 1.), -PI/2.);
+	
 //////////////////////////////////////////////////////////////
 
     if ( cosmoTime >= simTime  ) {
 
-		//drawSprite(vec3(mod(uv_simulationtimeSeconds, PI), 0., 0.), 1., 0.);
 		galpha = 1. - clamp( (cosmoTime - simTime - usedt)/simTfade , 0., 1. - simAlphaMin);
 		sMult = 1. - clamp( (cosmoTime - simTime - usedt)/simTfade , 0., 1.);
-		makeBoxOnSphere(lonlat, simSize * (sMult * s + 1.));
+		position = getPos(lonlat, vec2(0. , 0.));
+		drawSprite(RotMat*vec4(position, 0.0) + vec4(center, 0.0), simSize * (sMult * s + 1.), 0.0);
 	}
 
 }
